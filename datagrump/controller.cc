@@ -104,7 +104,7 @@ void Controller::ack_received( const uint64_t __attribute__((unused)) sequence_n
         cerr << "Lookup failed" << endl;
         window_estimate_ = the_window_size_;
       }
-      the_window_size_ = window_estimate_ - 1; //rate limit recovery
+      the_window_size_ = window_estimate_ * .75; //rate limit recovery
     }else {
       window_estimate_ *= .5;
     }
