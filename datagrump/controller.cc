@@ -100,36 +100,49 @@ void Controller::ack_received( const uint64_t __attribute__((unused)) sequence_n
     min_delay = pr.first < min_delay ? pr.first : min_delay;
   }
 
-  if (timestamp_ack_received > 300 ) { //If enough data to get rate
-    unsigned int longCount = arrivals_.size();
-    unsigned int shortCount = 0;
-    auto arr_rit = arrivals_.rbegin();
-    while(arr_rit != arrivals_.rend() && *arr_rit + 150 > timestamp_ack_received ){
-      shortCount++;
-      arr_rit++;
-    }
-
-    //validate whether arrivals < count
-
-  }else{ //otherwise, delay based
-    if (delay <= min_delay * 1.5) {
-      the_window_size_++;
-      window_estimate_ = window_estimate_ < the_window_size_ ? the_window_size_ : window_estimate_;
-    }else{
-      if( the_window_size_ == window_estimate_ ) { //if increasing
-        window_estimate_ = window_[send_timestamp_acked];
-        if(window_estimate_ == 0){
-          cerr << "Lookup failed" << endl;
-          window_estimate_ = the_window_size_;
-        }
-
-        the_window_size_ = window_estimate_ * .75; //rate limit recovery
-      }else {
-        window_estimate_ *= .5;
-      }
-    }
-  }
+  //if low delay or not enough sample size to estimate bandwidth
   
+    //window_estimate_ = window_estimate_ < the_window_size_ ? the_window_size_ : window_estimate_;
+    // cerr << "At time " << timestamp_ms()
+    //       << " window size increment " << the_window_size_ << endl;
+  if (delay <= min_delay * 1.25) {
+
+    // cerr << "At time " << timestamp_ms() << " slow start increment to " << the_window_size_  << endl;
+
+    the_window_size_++;
+
+  }else{
+    if( timestamp_ack_received > 300 ) {
+      unsigned int longCount = arrivals_.size();
+      unsigned int shortCount = 0;
+      auto arr_rit = arrivals_.rbegin();
+      while(arr_rit != arrivals_.rend() && *arr_rit + 150 > timestamp_ack_received ){
+        shortCount++;
+        arr_rit++;
+      }
+      // cerr << "At time " << timestamp_ms()
+      //       << " long count " << longCount - shortCount 
+      //       << " short count " << shortCount << endl;
+      //if decreasing, accounting for rounding errors
+      if ( shortCount * 2 < longCount) {
+        unsigned int firstSample = longCount - shortCount ;
+        // firstSample, shortCount, compute the next in the series
+        // by if condition, firstSample > longcount
+        int nextSample = shortCount - (firstSample - shortCount) * .5; //or 2shortcount - firstSample
+        
+        //the_window_size_ = shortCount;
+
+        the_window_size_ = nextSample > 0 ? nextSample : 1; //2.25 / .237
+        
+        // cerr << "At time " << timestamp_ms() << " Set window size to " << the_window_size_ << endl;
+      }
+    } else if (the_window_size_ > 1) {
+      // cerr << "At time " << timestamp_ms() << "delay-based decrease" << the_window_size_ << endl;
+      the_window_size_--;
+      //  the_window_size_ *= .5;
+    }
+  } 
+
 }
 
 /* How long to wait (in milliseconds) if there are no acks
