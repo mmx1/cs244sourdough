@@ -14,21 +14,19 @@ int main( int argc, char *argv[] )
   if ( argc < 1 ) { /* for sticklers */
     abort();
   }
-
   if ( argc != 2 ) {
     cerr << "Usage: " << argv[ 0 ] << " PORT" << endl;
     return EXIT_FAILURE;
   }
-
   /* create UDP socket for incoming datagrams */
   UDPSocket socket;
 
   /* turn on timestamps on receipt */
   socket.set_timestamps();
-
+  
   /* "bind" the socket to the user-specified local port number */
   socket.bind( Address( "::0", argv[ 1 ] ) );
-
+  
   cerr << "Listening on " << socket.local_address().to_string() << endl;
 
   uint64_t sequence_number = 0;
@@ -37,13 +35,12 @@ int main( int argc, char *argv[] )
   while ( true ) {
     const UDPSocket::received_datagram recd = socket.recv();
     ContestMessage message = recd.payload;
-
     /* assemble the acknowledgment */
     message.transform_into_ack( sequence_number++, recd.timestamp );
-
+    
     /* timestamp the ack just before sending */
     message.set_send_timestamp();
-
+    
     /* send the ack */
     socket.sendto( recd.source_address, message.to_string() );
   }

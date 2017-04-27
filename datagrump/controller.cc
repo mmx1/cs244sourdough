@@ -9,12 +9,13 @@ using namespace std;
 Controller::Controller( const bool debug )
   : debug_( debug )
 {}
-
+unsigned int the_window_size = 13;
+unsigned int part_of_window = 0;
+unsigned int signal = 0;
 /* Get current window size, in datagrams */
 unsigned int Controller::window_size( void )
 {
   /* Default: fixed window size of 100 outstanding datagrams */
-  unsigned int the_window_size = 50;
 
   if ( debug_ ) {
     cerr << "At time " << timestamp_ms()
@@ -49,7 +50,21 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
                                /* when the ack was received (by sender) */
 {
   /* Default: take no action */
-
+  cerr << "send_timestamp_acked: " << send_timestamp_acked << endl;
+  cerr << "recv_timestamp_acked: " << recv_timestamp_acked << endl;
+  cerr << "timestamp_ack_received: " << timestamp_ack_received << endl;
+  if (timestamp_ack_received - send_timestamp_acked > 100){
+    the_window_size = the_window_size/2 ;
+    //cerr << "Halfed "<< endl;
+    part_of_window = 0;
+  } else {
+    part_of_window ++;
+    if (part_of_window >= (2*the_window_size)){
+      the_window_size++;
+      part_of_window = 0;
+    }
+    //cerr << "Additive " << endl;
+  }
   if ( debug_ ) {
     cerr << "At time " << timestamp_ack_received
 	 << " received ack for datagram " << sequence_number_acked

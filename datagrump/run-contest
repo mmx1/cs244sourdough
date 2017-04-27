@@ -69,3 +69,6 @@ print qq{ done.\n\n};
 print $response->decoded_content;
 
 print "\n";
+
+my $bell = chr(7);
+print $bell;
