@@ -16,7 +16,9 @@ Controller::Controller( const bool debug )
     the_window_size_(5),
     delays_(),
     window_(),
-    window_estimate_(10)
+    window_estimate_(10),
+    inflight_(),
+    arrivals_()
 {}
 
 
@@ -36,7 +38,7 @@ unsigned int Controller::window_size( void )
 }
 
 /* A datagram was sent */
-void Controller::datagram_was_sent( const __attribute__((unused)) uint64_t sequence_number,
+void Controller::datagram_was_sent( uint64_t sequence_number,
 				    /* of the sent datagram */
 				    const uint64_t send_timestamp )
                                     /* in milliseconds */
@@ -48,6 +50,7 @@ void Controller::datagram_was_sent( const __attribute__((unused)) uint64_t seque
 	 // << " sent datagram " << sequence_number << endl;
   // }
   window_[send_timestamp] = the_window_size_;
+  inflight_[sequence_number]++;
 }
 
 /* An ack was received */
@@ -60,15 +63,26 @@ void Controller::ack_received( const uint64_t __attribute__((unused)) sequence_n
 			       const uint64_t timestamp_ack_received )
                                /* when the ack was received (by sender) */
 {
-  /* Default: take no action */
 
-  // if ( debug_ ) {
-  //   cerr << "At time " << timestamp_ack_received
-	 // << " received ack for datagram " << sequence_number_acked
-	 // << " (send @ time " << send_timestamp_acked
-	 // << ", received @ time " << recv_timestamp_acked << " by receiver's clock)"
-	 // << endl;
-  // }
+  //delete ack'ed from inflight 
+  auto if_it = inflight_.find(sequence_number_acked);
+  if (if_it != inflight_.end() ) {
+    inflight_.erase( if_it );
+  }
+
+  //add arrival to queue
+  auto arr_it = std::lower_bound(arrivals_.begin(), arrivals_.end(), recv_timestamp_acked);
+  arrivals_.insert(arr_it, recv_timestamp_acked);
+  //trim to last 300 ms
+  for (auto it = arrivals_.begin(); it != arrivals_.end(); it++ ) {
+    if ( *it + 300 < timestamp_ack_received ) {
+      arrivals_.erase(it);
+    }else{
+      break;
+    }
+  }
+  
+
   uint64_t delay = timestamp_ack_received - send_timestamp_acked;
   if(delay == 0 ) {
     delay = 100;
@@ -85,61 +99,37 @@ void Controller::ack_received( const uint64_t __attribute__((unused)) sequence_n
   for (auto pr : delays_) {
     min_delay = pr.first < min_delay ? pr.first : min_delay;
   }
-  
 
-  if (delay <= min_delay * 1.5) {
-    // if (debug_) {
-    //   cerr << "min delay of: " << min_delay
-    //        << "delay of: " << delay 
-    //        << "Increment window" << the_window_size_ << endl;
-    // }
-    if(debug_){
-      cerr << "Min delay of " << min_delay << " after receiving delay " << delay << " incrementing "<< endl;
+  if (timestamp_ack_received > 300 ) { //If enough data to get rate
+    unsigned int longCount = arrivals_.size();
+    unsigned int shortCount = 0;
+    auto arr_rit = arrivals_.rbegin();
+    while(arr_rit != arrivals_.rend() && *arr_rit + 150 > timestamp_ack_received ){
+      shortCount++;
+      arr_rit++;
     }
 
-    the_window_size_++;
-    window_estimate_ = window_estimate_ < the_window_size_ ? the_window_size_ : window_estimate_;
-  }else{
-    if( the_window_size_ == window_estimate_ ) { //if increasing
-      window_estimate_ = window_[send_timestamp_acked];
-      if(window_estimate_ == 0){
-        cerr << "Lookup failed" << endl;
-        window_estimate_ = the_window_size_;
-      }
+    //validate whether arrivals < count
 
-      the_window_size_ = window_estimate_ * .75; //rate limit recovery
-      //the_window_size_ = the_window_size_ == 0 ? 1 : the_window_size_;
+  }else{ //otherwise, delay based
+    if (delay <= min_delay * 1.5) {
+      the_window_size_++;
+      window_estimate_ = window_estimate_ < the_window_size_ ? the_window_size_ : window_estimate_;
+    }else{
+      if( the_window_size_ == window_estimate_ ) { //if increasing
+        window_estimate_ = window_[send_timestamp_acked];
+        if(window_estimate_ == 0){
+          cerr << "Lookup failed" << endl;
+          window_estimate_ = the_window_size_;
+        }
 
-      if(debug_){
-        cerr << "Min delay of " << min_delay << " after receiving delay " << delay << "rate recovery "<< endl;
-      }
-
-    }else {
-      window_estimate_ *= .5;
-      // window_estimate_ = window_estimate_ < 0 ? 1 : window_estimate_;
-      //window_estimate_ = window_estimate_ < 2 ? 1 : window_estimate_ - 1;
-      if(debug_){
-        cerr << "Min delay of " << min_delay 
-             << " after receiving delay " << delay 
-             << " reset estimate to " << window_estimate_ << endl;
+        the_window_size_ = window_estimate_ * .75; //rate limit recovery
+      }else {
+        window_estimate_ *= .5;
       }
     }
-    //the_window_size_ = window_estimate_ < 2 ? 1 : window_estimate_ - 1;
-    // the_window_size_ = window_estimate_ * .75;
-    // the_window_size_ = the_window_size_ == 0 ? 1 : the_window_size_;
-
-    
-
-    // if (debug_) {
-    //   cerr << "min delay of: " << min_delay
-    //        << "delay of: " << delay 
-    //        << "Backoff window" << the_window_size_ << endl;
-    // }
-
-    // if (the_window_size_ > 1 ) {
-    //   the_window_size_ --;
-    // }
   }
+  
 }
 
 /* How long to wait (in milliseconds) if there are no acks
