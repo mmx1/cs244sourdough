@@ -40,6 +40,8 @@ void Controller::datagram_was_sent( const uint64_t sequence_number,
 }
 
 unsigned int prev_RTT = 0;
+unsigned int overload_wnd = 0;
+unsigned int old_window_size = 0;
 
 /* An ack was received */
 void Controller::ack_received( const uint64_t sequence_number_acked,
@@ -51,14 +53,31 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
 			       const uint64_t timestamp_ack_received )
                                /* when the ack was received (by sender) */
 {
-  unsigned int curr_RTT = timestamp_ack_received - send_timestamp_acked;  
+  unsigned int curr_RTT = timestamp_ack_received - send_timestamp_acked;
+  if (overload_wnd){
+    overload_wnd--;
+    cerr << overload_wnd << endl;
+    // if (!overload_wnd){
+    //   the_window_size = old_window_size;
+    // }
+    prev_RTT = curr_RTT;
+    return;
+  }
+    
   if(prev_RTT) {
     if (prev_RTT < curr_RTT) {
       if (curr_RTT > 300){
-        the_window_size = the_window_size / 2;
+        cerr << "300 cut"<< endl;
+        overload_wnd = the_window_size;
+        old_window_size = the_window_size / 2;
+        the_window_size = 0;
       } else if (curr_RTT - prev_RTT > 25){
+        cerr << "25 cut" << endl;
+        overload_wnd = the_window_size;
         the_window_size = the_window_size / 2;
-      } else {
+      } else if (curr_RTT - prev_RTT > 15 || curr_RTT > 90){
+        the_window_size = (the_window_size == 0) ? 0 : the_window_size - 1;
+      }else {
         part_of_window ++;
         if (part_of_window >= (the_window_size)){
           the_window_size++;
@@ -67,7 +86,7 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
       }
       
     } else {
-      part_of_window ++;
+      part_of_window +=2;
       if (part_of_window >= (the_window_size)){
         the_window_size++;
         part_of_window = 0;

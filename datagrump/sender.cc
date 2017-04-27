@@ -2,6 +2,8 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <chrono>
+#include <thread>
 
 #include "socket.hh"
 #include "contest_message.hh"
@@ -125,6 +127,7 @@ int DatagrumpSender::loop( void )
 	/* Close the window */
 	while ( window_is_open() ) {
 	  send_datagram();
+    //std::this_thread::sleep_for(std::chrono::milliseconds(1));
 	}
 	return ResultType::Continue;
       },
