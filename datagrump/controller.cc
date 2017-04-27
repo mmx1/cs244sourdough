@@ -36,9 +36,9 @@ unsigned int Controller::window_size( void )
 }
 
 /* A datagram was sent */
-void Controller::datagram_was_sent( const __attribute__((unused)) uint64_t sequence_number,
+void Controller::datagram_was_sent( const uint64_t sequence_number,
 				    /* of the sent datagram */
-				    const uint64_t send_timestamp )
+				    const uint64_t __attribute__((unused)) send_timestamp )
                                     /* in milliseconds */
 {
   /* Default: take no action */
@@ -47,7 +47,7 @@ void Controller::datagram_was_sent( const __attribute__((unused)) uint64_t seque
   //   cerr << "At time " << send_timestamp
 	 // << " sent datagram " << sequence_number << endl;
   // }
-  window_[send_timestamp] = the_window_size_;
+  window_[sequence_number] = the_window_size_;
 }
 
 /* An ack was received */
@@ -100,8 +100,8 @@ void Controller::ack_received( const uint64_t __attribute__((unused)) sequence_n
     the_window_size_++;
     window_estimate_ = window_estimate_ < the_window_size_ ? the_window_size_ : window_estimate_;
   }else{
-    if( the_window_size_ == window_estimate_ ) { //if increasing
-      window_estimate_ = window_[send_timestamp_acked];
+    if( the_window_size_ >= window_estimate_ ) { //if increasing
+      window_estimate_ = window_[sequence_number_acked];
       if(window_estimate_ == 0){
         cerr << "Lookup failed" << endl;
         window_estimate_ = the_window_size_;
