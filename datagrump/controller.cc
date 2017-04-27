@@ -39,6 +39,8 @@ void Controller::datagram_was_sent( const uint64_t sequence_number,
   }
 }
 
+unsigned int prev_RTT = 0;
+
 /* An ack was received */
 void Controller::ack_received( const uint64_t sequence_number_acked,
 			       /* what sequence number was acknowledged */
@@ -49,22 +51,47 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
 			       const uint64_t timestamp_ack_received )
                                /* when the ack was received (by sender) */
 {
-  /* Default: take no action */
-  cerr << "send_timestamp_acked: " << send_timestamp_acked << endl;
-  cerr << "recv_timestamp_acked: " << recv_timestamp_acked << endl;
-  cerr << "timestamp_ack_received: " << timestamp_ack_received << endl;
-  if (timestamp_ack_received - send_timestamp_acked > 100){
-    the_window_size = the_window_size/2 ;
-    //cerr << "Halfed "<< endl;
-    part_of_window = 0;
-  } else {
-    part_of_window ++;
-    if (part_of_window >= (2*the_window_size)){
-      the_window_size++;
-      part_of_window = 0;
+  unsigned int curr_RTT = timestamp_ack_received - send_timestamp_acked;  
+  if(prev_RTT) {
+    if (prev_RTT < curr_RTT) {
+      if (curr_RTT > 300){
+        the_window_size = the_window_size / 4;
+      } else if (curr_RTT - prev_RTT > 25){
+        the_window_size = the_window_size / 2;
+      } else {
+        part_of_window ++;
+        if (part_of_window >= (the_window_size)){
+          the_window_size++;
+          part_of_window = 0;
+        }
+      }
+      
+    } else {
+      part_of_window ++;
+      if (part_of_window >= (the_window_size)){
+        the_window_size++;
+        part_of_window = 0;
+      }
     }
-    //cerr << "Additive " << endl;
-  }
+  } 
+  prev_RTT = curr_RTT;
+
+  /* Default: take no action */
+  // cerr << "send_timestamp_acked: " << send_timestamp_acked << endl;
+  // cerr << "recv_timestamp_acked: " << recv_timestamp_acked << endl;
+  // cerr << "timestamp_ack_received: " << timestamp_ack_received << endl;
+  // if (timestamp_ack_received - send_timestamp_acked > 100){
+  //   the_window_size = the_window_size/2 ;
+  //   //cerr << "Halfed "<< endl;
+  //   part_of_window = 0;
+  // } else {
+  //   part_of_window ++;
+  //   if (part_of_window >= (the_window_size)){
+  //     the_window_size++;
+  //     part_of_window = 0;
+  //   }
+  //   //cerr << "Additive " << endl;
+  // }
   if ( debug_ ) {
     cerr << "At time " << timestamp_ack_received
 	 << " received ack for datagram " << sequence_number_acked
