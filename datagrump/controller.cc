@@ -92,7 +92,7 @@ void Controller::ack_received( const uint64_t __attribute__((unused)) sequence_n
 
   if (delay <= min_delay_ * 1.5) {
     // Scales increase as delay increases
-    unsigned int factor = 1 - ( 2 * (delay - min_delay_)/ min_delay_);
+    float factor = 1 - ( 2 * (delay - min_delay_)/ min_delay_);
     the_window_size_ += factor * factor * factor;
     window_estimate_ = window_estimate_ < the_window_size_ ? the_window_size_ : window_estimate_;
   }else{
