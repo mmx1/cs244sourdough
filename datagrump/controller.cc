@@ -52,29 +52,24 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
                                /* when the ack was received (by sender) */
 {
   unsigned int curr_RTT = timestamp_ack_received - send_timestamp_acked;  
-  if(prev_RTT) {
-    if (prev_RTT < curr_RTT) {
-      if (curr_RTT > 300){
-        the_window_size = the_window_size / 2;
-      } else if (curr_RTT - prev_RTT > 25){
-        the_window_size = the_window_size / 2;
-      } else {
-        part_of_window ++;
-        if (part_of_window >= (the_window_size)){
-          the_window_size++;
-          part_of_window = 0;
-        }
-      }
-      
+  if (curr_RTT > 1000){
+      the_window_size = the_window_size / 4;
+    // } else if (curr_RTT - prev_RTT > 25){
+    //   the_window_size = the_window_size / 2;
+    // } else {
+    //   part_of_window ++;
+    //   if (part_of_window >= (the_window_size)){
+    //     the_window_size++;
+    //     part_of_window = 0;
+    //   }
     } else {
-      part_of_window ++;
+      part_of_window += 2;
       if (part_of_window >= (the_window_size)){
         the_window_size++;
         part_of_window = 0;
       }
-    }
-  } 
-  prev_RTT = curr_RTT;
+    } 
+  //prev_RTT = curr_RTT;
 
   /* Default: take no action */
   // cerr << "send_timestamp_acked: " << send_timestamp_acked << endl;
@@ -105,10 +100,10 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
    before sending one more datagram */
 unsigned int Controller::timeout_ms( void )
 {
-  return 300; /* timeout of one second */
+  return 1000; /* timeout of one second */
 }
 
 void Controller::timeout_occurred (void)
 {
-  the_window_size = the_window_size / 2;
+  //the_window_size = the_window_size / 2;
 }
