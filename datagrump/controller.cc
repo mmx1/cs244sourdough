@@ -16,7 +16,7 @@ Controller::Controller( const bool debug )
     the_window_size_(1),
     delays_(),
     window_(),
-    window_estimate_(1)
+    window_estimate_(10)
 {}
 
 
@@ -85,16 +85,18 @@ void Controller::ack_received( const uint64_t __attribute__((unused)) sequence_n
   for (auto pr : delays_) {
     min_delay = pr.first < min_delay ? pr.first : min_delay;
   }
-  if(debug_){
-    cerr << "Min delay of " << min_delay << " after receiving delay " << delay << endl;
-  }
+  
 
-  if (delay <= min_delay * 1.25) {
+  if (delay <= min_delay * 1.5) {
     // if (debug_) {
     //   cerr << "min delay of: " << min_delay
     //        << "delay of: " << delay 
     //        << "Increment window" << the_window_size_ << endl;
     // }
+    if(debug_){
+      cerr << "Min delay of " << min_delay << " after receiving delay " << delay << "incrementing "<< endl;
+    }
+
     the_window_size_++;
     window_estimate_ = window_estimate_ < the_window_size_ ? the_window_size_ : window_estimate_;
   }else{
@@ -104,9 +106,18 @@ void Controller::ack_received( const uint64_t __attribute__((unused)) sequence_n
         cerr << "Lookup failed" << endl;
         window_estimate_ = the_window_size_;
       }
+
       the_window_size_ = window_estimate_ * .75; //rate limit recovery
+
+      if(debug_){
+        cerr << "Min delay of " << min_delay << " after receiving delay " << delay << "rate recovery "<< endl;
+      }
+
     }else {
       window_estimate_ *= .5;
+      if(debug_){
+        cerr << "Min delay of " << min_delay << " after receiving delay " << delay << "reset estimate "<< endl;
+      }
     }
 
     
