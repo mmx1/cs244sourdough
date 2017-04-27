@@ -55,7 +55,7 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
   if(prev_RTT) {
     if (prev_RTT < curr_RTT) {
       if (curr_RTT > 300){
-        the_window_size = the_window_size / 4;
+        the_window_size = the_window_size / 2;
       } else if (curr_RTT - prev_RTT > 25){
         the_window_size = the_window_size / 2;
       } else {
@@ -110,5 +110,5 @@ unsigned int Controller::timeout_ms( void )
 
 void Controller::timeout_occurred (void)
 {
-  the_window_size = the_window_size / 4;
+  the_window_size = the_window_size / 2;
 }
