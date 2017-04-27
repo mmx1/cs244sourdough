@@ -105,5 +105,10 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
    before sending one more datagram */
 unsigned int Controller::timeout_ms( void )
 {
-  return 1000; /* timeout of one second */
+  return 300; /* timeout of one second */
+}
+
+void Controller::timeout_occurred (void)
+{
+  the_window_size = the_window_size / 4;
 }

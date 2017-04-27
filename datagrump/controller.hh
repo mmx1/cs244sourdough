@@ -23,6 +23,8 @@ public:
   /* Get current window size, in datagrams */
   unsigned int window_size( void );
 
+  void timeout_occurred (void);
+
   /* A datagram was sent */
   void datagram_was_sent( const uint64_t sequence_number,
 			  const uint64_t send_timestamp );
