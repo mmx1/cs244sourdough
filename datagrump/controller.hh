@@ -16,6 +16,7 @@ private:
   std::deque<std::pair<uint64_t, uint64_t>> delays_; //delay, received timestamp
   std::map<uint64_t,uint64_t> window_; //time sent, window at time
   unsigned int window_estimate_;
+  bool probe_conn_;
 
 
   /* Add member variables here */

@@ -8,6 +8,7 @@
 using namespace std;
 #define INTERVAL_TIME 200000
 #define DELAY_FLOOR 100
+#define WINDOW_FLOOR 5
 
 typedef std::pair<uint64_t, uint64_t> delay_pair;
 /* Default constructor */
@@ -16,7 +17,8 @@ Controller::Controller( const bool debug )
     the_window_size_(1),
     delays_(),
     window_(),
-    window_estimate_(10)
+    window_estimate_(10),
+    probe_conn_(false)
 {}
 
 
@@ -69,6 +71,8 @@ void Controller::ack_received( const uint64_t __attribute__((unused)) sequence_n
 	 // << ", received @ time " << recv_timestamp_acked << " by receiver's clock)"
 	 // << endl;
   // }
+
+  probe_conn_ = false;
   uint64_t delay = timestamp_ack_received - send_timestamp_acked;
   if(delay == 0 ) {
     delay = 100;
@@ -108,6 +112,7 @@ void Controller::ack_received( const uint64_t __attribute__((unused)) sequence_n
       }
 
       the_window_size_ = window_estimate_ * .75; //rate limit recovery
+      the_window_size_ = the_window_size_ > 0 ? the_window_size_ : WINDOW_FLOOR;
 
       if(debug_){
         cerr << "Min delay of " << min_delay << " after receiving delay " << delay << "rate recovery "<< endl;
@@ -119,9 +124,7 @@ void Controller::ack_received( const uint64_t __attribute__((unused)) sequence_n
         cerr << "Min delay of " << min_delay << " after receiving delay " << delay << "reset estimate "<< endl;
       }
     }
-
-    
-
+    window_estimate_ = window_estimate_ > 0 ? window_estimate_ : WINDOW_FLOOR;
     // if (debug_) {
     //   cerr << "min delay of: " << min_delay
     //        << "delay of: " << delay 
@@ -138,10 +141,13 @@ void Controller::ack_received( const uint64_t __attribute__((unused)) sequence_n
    before sending one more datagram */
 unsigned int Controller::timeout_ms( void )
 {
-  return 300; /* timeout of one second */
+  return probe_conn_ ? 50 : 300; /* timeout of one second */
 }
 
 void Controller::timeout_occurred( void ){
+  // probe_conn_ = true;
   the_window_size_ = the_window_size_ * 0.625;
-  cerr << "TIMEOUT OCCURRED" << endl;
+  the_window_size_ = the_window_size_ > 0 ? the_window_size_ : WINDOW_FLOOR;
+  uint64_t delay =  delays_.rbegin() != delays_.rend() ? delays_.rbegin()->first : 0;
+  cerr << "TIMEOUT OCCURRED at time " << timestamp_ms() << " with delay " << delay << " window " << the_window_size_ << endl;
 }
