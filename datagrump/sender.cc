@@ -150,6 +150,7 @@ int DatagrumpSender::loop( void )
       /* After a timeout, send one datagram to try to get things moving again */
       controller_.timeout_occurred();
       send_datagram();
+      controller_.timeout_occurred();
     }
   }
 }

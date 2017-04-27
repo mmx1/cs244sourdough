@@ -2,6 +2,9 @@
 #define CONTROLLER_HH
 
 #include <cstdint>
+#include <deque>
+#include <utility>
+#include <map>
 
 /* Congestion controller interface */
 
@@ -9,7 +12,16 @@ class Controller
 {
 private:
   bool debug_; /* Enables debugging output */
+  double the_window_size_;
+  std::map<uint64_t,uint64_t> window_; //maps seqno to to window size when seqno sent
+  double window_estimate_;
+  double stored_window;
+  bool probe_conn_;
 
+  bool recovery_;
+  uint64_t recovery_seqno_;
+
+  uint64_t min_delay_;
   /* Add member variables here */
 
 public:
@@ -38,6 +50,7 @@ public:
   /* How long to wait (in milliseconds) if there are no acks
      before sending one more datagram */
   unsigned int timeout_ms( void );
+
 };
 
 #endif
