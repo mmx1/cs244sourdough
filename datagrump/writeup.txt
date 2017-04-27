@@ -5,14 +5,15 @@ CS244 Project 2 Writeup
 GitHub repo:
 https://github.com/keithm2/CS244_Proj2
 
-Exercise 1: The best single window size to maximize the score was a window size of 13, and a average power score of 12.83. The stddev of our measurements was ~.05 for 12,13 and 14
+Exercise A: The best single window size to maximize the score was a window size of 13, and a average power score of 12.83. The stddev of our measurements was ~.05 for 12,13 and 14. Our methodology for finding the best window size was to utilize a binary like search algorithm. We started at 50 and 100 because that was what the starter code was utilizing. We iterated over the binary search for 25, 15, and then 10. A window size of 15 gave the best results so took an upper and lower value to find where the pinnacle power point. Our first run gave a window size of 12 higher than 13 but after a few iterations at each, 13 was more likely to be higher than 12. Thus our conclusion of a window size of 13 gives the best overall power. Note: we did not modify any other part of the starter code at this point. 
 
 
-Exercise 2:
+Exercise B:
 We implemented AIMD with parameters
 window := window + a
 window := window x b
-for values 
+Based on the TCP specification a is usally 1/cwnd when in congestion-avoidance and b is usually 1/2. The b parameter is less than 1 by design.  We modify the window when the alogorithm experiences a loss and we decided to interpret loss as a timeout, since the simulation does not drop packets (from our testing). The started code had a timeout triggered after 1 second and we did not change this for this part of the project.We initially built this code solely in the ack_received function call within the controller without changing the sender and on_timeout code. We calculated the current RTT from the sender's perspective and compared it to our timeout threshold to decide if a timeout existed. If over, then cut window by b; if under, increment window by a. 
+Our results are shown fo values: 
 a = 1/ window, 1/(2*window)
 b = 1/8, 1/4, 1/2
 
@@ -20,9 +21,35 @@ These schemes produced results much
 lower than a fixed window size. Our best result 
 was for a = 1/ (2*window), b = 1/4
 
-Exercise 3:
-We implemented a delay based congestion, initially with AIMD triggered by delay over/under a constant value of 100, 150, and 300ms.
+We found some errors in our interpretation and implementation of a TCP-like AIMD algorithm and we touch on these modifications in the first half of exercise C. These changes include faster signal on timeout by modifying the sender code and ignoring a window's worth of signals so that a 'loss' is not interpretted many times. We made these changes as part of tweaks to our delay based interpretation which is why it is discussed in Exercise C.
 
-We then modified the addition and recovery mechanisms and got much higher power scores.
+Exercise C:
+We implemented a delay based congestion, initially with AIMD triggered by delay over/under a constant value of 100, 150, and 300ms. These initially scored fairly low, ~ 4. We then moved to modify our scheme so that we could do different types of multiplicative decrease and increase based on how close or how far the current delay and previous delay compare to each other. We decided to do this because we observed that timeout by itself only catches when there are large changes to the network link capacity or queue size, but because both change frequently we wanted to modify how much traffic is in the network based on how we perceive congestion in the network. We use 300ms as one threshold that if curr_RTT is > 300ms then we cut the window size by 1/4 then 1/2. This was to attempt to cap the queue delay incurred. Then we checked to see if curr_rtt - prev_rtt > 25 ms then we also cut the window size by 1/2. We interpret this as a sharp increase in congestion likely due to link capacity changing. If it is below this threshold then we assume that the network does not have too much congestion and we increase the window size by 1/cwnd; this is done as well if curr_rtt < prev_RTT. With these changes we were able to increase power to ~14.
+At this point we saw that we were losing an RTT + timeout to preceive congestion due to a timeout. We modified the sender to call the controller on timeout and then to cut window size by 1/2 which improved our power to ~20-23 because we decreased our signal delay by catching the timeout early. We also thought that we were receiving the same signal for the same event and thus decreasing window size to much so we implemented on a congestion signal, we would ignore a window size of signal because they would likely all be the same and cut window size by too much. This would have been more accurate to have implemented with our AIMD algorithm. These modifications are shown in our exercise C graph as well.
+
+Out initial modifications were inspired by BBR, in that we wanted to gain signal about network conditions rather than try to fill the window until packets get dropped, as TCP does. 
+- First we collected the delays ( sender RTT received - sender packet sent time), and used this to estimate our minRTT, which on the test data was ~46ms. We decided to make the simplifying assumption that propagation delay was relatively static. Updating our minRTT estimate mid-flow would necessarily require that we have a period of sub-optimal throughput to probe that characteristic.
+- For each ack received with a delay less than the min * a threshhold value T, we increase the window size by 1. This gives us
+very good exponential growth to quickly find the bandwidth limit. Experimentally, we found 1.5 to be the optimal value for T.
+- We tried multiple methods of recovery. Initially, we halved the window, but this behavior was too aggressive. Also, it discarded the information about at what size window the delay passes our threshhold. These approaches elevated the score into the 10's
+- Out next approach was to preserve the that value as a "window_estimate", while backing the window size off by a multiplicative factor to allow the queue to drain. (we settled on a factor of .75). If we continue to have high RTT's while backing off the window (i.e. window < window_estimate), then we adjust our window estimate downward. We floor the window at a nonzero constant to prevent the backoff from choking off the flow.
+- This window estimate was initially based on the time that the ack was received. We then shifted to storing the window size for every sent packet, and retrieving it based on the sequence number we received an ack for, for a more accurate estimate.
+- Finally, we implemented a handler that notifies the controller if a timeout occurred, and use that to back off the window estimate. 
+
+Exercise D:
+We tried several approaches in parallel, refining both the AIMD and delay-based controllers to scores in the low 20's. Our design was inspired by BBR, in that we wanted to interpret the singals we're receiving to estimate the condition of the flow and respond to avoid congestion. As such, we have three implicit states 
+  - exponential growth when we're receiving ack's with low delay
+  - recovery (queue drain) when we cross a delay threshold
+  - backoff if recovery fails to mitigate delay (i.e. throughput declining)
+We also made an attempt to estimate bandwidth at the receiver based on the spacing of the recv_timestamp_acked, but did not come up with a predictive algorithm that substantially improved performance.
+Our final submission takes the approach outlined in part C, and further improves upon it:
+- We noticed that the delay-based increase would stall if recovering from a network outage. We would periodically resend on timeout, but the first ack's to received after the outage would have artifically long delay times (with the outage included), and we wouldn't begin exponential increase until the queue had cleared and we received ack's from the first packets to be sent after the outage. So the recovery would be delayed by the time to drain the queue.
+- Because we actively avoid filling the queue, a timeout is more likely from a network outage or packet drop than a full queue. So on timeout, we save the previous window size, and temporarily decrease the timeout interval to probe for when the network returns. When it does, we restore the previous window, and increase it linearly while masking the delay signal until the pre-outage queue is clear.
+
+We consider a timeout in the network to be 5 * min_delay under normal operating conditions, i.e. not probing for network loss. The struggle with reasoning about a timeout is that there are two constantly changing factors on the network, queue delay and link-capacity changes. Both factors affect the delay in the network. We wanted a timeout that introduces small amount of false positives (packet is delayed but the network is slow) compared to a packet dropped in the network or losing network connection. We don't have packet drop in the simulation but a network drop has a similar affect. We also designed the algorithm to keep queueing delay low so we calculate that a high increase in delay compared to the minimum delay is most likely caused by a drop in the network. We choose 5 because it provided the best performance but is scaled to the network perforance, by min_delay. 
+On a timeout we drop window to 0 so that we don't introduce more congestion on the network but by storing the previous window estimate * 5/8 we can quickly recover on a false positive and we believe that it is unlikely for a network connection to go from high bandwidth to 0 but will drop at some rate that when we regain service it will also likely grow at a similar rate. We take 5/8 of the estimate because we want to error on the side of a smaller window on restart but also want to reintroduce flow quickly for throughput. 
+Also on timeout we introduce a probe where we want to see if the network comes back online sooner than a normal timeout. This is also so that we can detect a network coming back up quicker to improve throughput and we believe that only one packet sent into the network on probe will not introduce to much congestion on the sender or receiver. We choose 3 because it is smaller then the timeout but also sigificantly larger than the min delay. We use the same logic that bandwidth is likely going to come back up slowly rather than a rapid connection.
+
+
 
 
