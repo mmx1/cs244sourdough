@@ -13,12 +13,15 @@ class Controller
 private:
   bool debug_; /* Enables debugging output */
   unsigned int the_window_size_;
-  std::deque<std::pair<uint64_t, uint64_t>> delays_; //delay, received timestamp
-  std::map<uint64_t,uint64_t> window_; //time sent, window at time
+  std::map<uint64_t,uint64_t> window_; //maps seqno to to window size when seqno sent
   unsigned int window_estimate_;
+  unsigned int stored_window;
   bool probe_conn_;
 
+  bool recovery_;
+  uint64_t recovery_seqno_;
 
+  uint64_t min_delay_;
   /* Add member variables here */
 
 public:
