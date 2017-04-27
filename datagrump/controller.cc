@@ -138,5 +138,10 @@ void Controller::ack_received( const uint64_t __attribute__((unused)) sequence_n
    before sending one more datagram */
 unsigned int Controller::timeout_ms( void )
 {
-  return 1000; /* timeout of one second */
+  return 300; /* timeout of one second */
+}
+
+void Controller::timeout_occurred( void ){
+  the_window_size_ = the_window_size_ * 0.625;
+  cerr << "TIMEOUT OCCURRED" << endl;
 }
