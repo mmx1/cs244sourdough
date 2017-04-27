@@ -5,14 +5,15 @@ CS244 Project 2 Writeup
 GitHub repo:
 https://github.com/keithm2/CS244_Proj2
 
-Exercise A: The best single window size to maximize the score was a window size of 13, and a average power score of 12.83. The stddev of our measurements was ~.05 for 12,13 and 14
+Exercise A: The best single window size to maximize the score was a window size of 13, and a average power score of 12.83. The stddev of our measurements was ~.05 for 12,13 and 14. Our methodology for finding the best window size was to utilize a binary like search algorithm. We started at 50 and 100 because that was what the starter code was utilizing. We iterated over the binary search for 25, 15, and then 10. A window size of 15 gave the best results so took an upper and lower value to find where the pinnacle power point. Our first run gave a window size of 12 higher than 13 but after a few iterations at each, 13 was more likely to be higher than 12. Thus our conclusion of a window size of 13 gives the best overall power. Note: we did not modify any other part of the starter code at this point. 
 
 
 Exercise B:
 We implemented AIMD with parameters
 window := window + a
 window := window x b
-for values 
+Based on the TCP specification a is usally 1/cwnd when in congestion-avoidance and b is usually 1/2. The b parameter is less than 1 by design.  We modify the window when the alogorithm experiences a loss and we decided to interpret loss as a timeout, since the simulation does not drop packets (from our testing). The started code had a timeout triggered after 1 second and we did not change this for this part of the project.We initially built this code solely in the ack_received function call within the controller without changing the sender and on_timeout code. We calculated the current RTT from the sender's perspective and compared it to our timeout threshold to decide if a timeout existed. If over, then cut window by b; if under, increment window by a. 
+Our results are shown fo values: 
 a = 1/ window, 1/(2*window)
 b = 1/8, 1/4, 1/2
 
@@ -20,8 +21,12 @@ These schemes produced results much
 lower than a fixed window size. Our best result 
 was for a = 1/ (2*window), b = 1/4
 
+We touch on this down in part C but we modify our AIMD algorithm and with tweaks get a performance of 23 with the tweaks but because we modify how a timeout is interpretted (delay in the network) we put the writeup in part c.
+
 Exercise C:
-We implemented a delay based congestion, initially with AIMD triggered by delay over/under a constant value of 100, 150, and 300ms. These initially scored fairly low, ~ 4.
+We implemented a delay based congestion, initially with AIMD triggered by delay over/under a constant value of 100, 150, and 300ms. These initially scored fairly low, ~ 4. We then moved to modify our scheme so that we could do different types of multiplicative decrease and increase based on how close or how far the current delay and previous delay compare to each other. We decided to do this because we observed that timeout by itself only catches when there are large changes to the network link capacity or queue size, but because both change frequently we wanted to modify how much traffic is in the network based on how we perceive congestion in the network. We use 300ms as one threshold that if curr_RTT is > 300ms then we cut the window size by 1/4 then 1/2. This was to attempt to cap the queue delay incurred. Then we checked to see if curr_rtt - prev_rtt > 25 ms then we also cut the window size by 1/2. We interpret this as a sharp increase in congestion likely due to link capacity changing. If it is below this threshold then we assume that the network does not have too much congestion and we increase the window size by 1/cwnd; this is done as well if curr_rtt < prev_RTT. With these changes we were able to increase power to ~14.
+At this point we saw that we were losing an RTT + timeout to preceive congestion due to a timeout. We modified the sender to call the controller on timeout and then to cut window size by 1/2 which improved our power to ~20-23 because we decreased our signal delay by catching the timeout early. We also thought that we were receiving the same signal for the same event and thus decreasing window size to much so we implemented on a congestion signal, we would ignore a window size of signal because they would likely all be the same and cut window size by too much. This would have been more accurate to have implemented with our AIMD algorithm. These modifications are shown in our exercise C graph as well.
+
 Out initial modifications were inspired by BBR, in that we wanted to gain signal about network conditions rather than try to fill the window until packets get dropped, as TCP does. 
 - First we collected the delays ( sender RTT received - sender packet sent time), and used this to estimate our minRTT, which on the test data was ~46ms. We decided to make the simplifying assumption that propagation delay was relatively static. Updating our minRTT estimate mid-flow would necessarily require that we have a period of sub-optimal throughput to probe that characteristic.
 - For each ack received with a delay less than the min * a threshhold value T, we increase the window size by 1. This gives us
