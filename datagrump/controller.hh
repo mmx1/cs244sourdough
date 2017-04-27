@@ -12,10 +12,10 @@ class Controller
 {
 private:
   bool debug_; /* Enables debugging output */
-  unsigned int the_window_size_;
+  double the_window_size_;
   std::map<uint64_t,uint64_t> window_; //maps seqno to to window size when seqno sent
-  unsigned int window_estimate_;
-  unsigned int stored_window;
+  double window_estimate_;
+  double stored_window;
   bool probe_conn_;
 
   bool recovery_;

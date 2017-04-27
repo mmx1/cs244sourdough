@@ -26,15 +26,14 @@ Controller::Controller( const bool debug )
 /* Get current window size, in datagrams */
 unsigned int Controller::window_size( void )
 {
-  /* Default: fixed window size of 100 outstanding datagrams */
-  
-
   if ( debug_ ) {
     cerr << "At time " << timestamp_ms()
 	 << " window size is " << the_window_size_ << endl;
   }
 
-  return the_window_size_;
+  int rounded_window = static_cast<int>(the_window_size_);
+
+  return rounded_window > 0 ? rounded_window : 0;
 }
 
 /* A datagram was sent */
@@ -43,12 +42,6 @@ void Controller::datagram_was_sent( const uint64_t sequence_number,
 				    const uint64_t __attribute__((unused)) send_timestamp )
                                     /* in milliseconds */
 {
-  /* Default: take no action */
-
-  // if ( debug_ ) {
-  //   cerr << "At time " << send_timestamp
-	 // << " sent datagram " << sequence_number << endl;
-  // }
   window_[sequence_number] = the_window_size_;
   if(!recovery_){
     recovery_seqno_ = sequence_number;
@@ -82,10 +75,12 @@ void Controller::ack_received( const uint64_t __attribute__((unused)) sequence_n
 
   if (recovery_ ) {
     if(sequence_number_acked <= recovery_seqno_) {
-      if (sequence_number_acked % the_window_size_ == 0) {
-        the_window_size_ ++;
-        window_estimate_ = the_window_size_;
+      if (the_window_size_ != 0) {
+        the_window_size_ += 1/the_window_size_ ;
+      }else{
+        the_window_size_ = 1;
       }
+      window_estimate_ = the_window_size_;
       return;
     }else{
       recovery_ = false;
@@ -93,10 +88,6 @@ void Controller::ack_received( const uint64_t __attribute__((unused)) sequence_n
   }
 
   if (delay <= min_delay_ * 1.5) {
-    if(debug_){
-      cerr << "Min delay of " << min_delay_ << " after receiving delay " << delay << "incrementing "<< endl;
-    }
-
     the_window_size_++;
     window_estimate_ = window_estimate_ < the_window_size_ ? the_window_size_ : window_estimate_;
   }else{
@@ -128,8 +119,8 @@ void Controller::ack_received( const uint64_t __attribute__((unused)) sequence_n
    before sending one more datagram */
 unsigned int Controller::timeout_ms( void )
 {
-  float factor = probe_conn_ ? 1.2 : 6;
-  return min_delay_ * factor; /* timeout of one second */
+  float factor = probe_conn_ ? 1.2 : 5;
+  return static_cast<unsigned int>(min_delay_ * factor);
 }
 
 void Controller::timeout_occurred( void ){
@@ -138,8 +129,7 @@ void Controller::timeout_occurred( void ){
     stored_window = the_window_size_ * 0.625;
     stored_window = stored_window > WINDOW_FLOOR ? stored_window : 1;  
   }
-  //the_window_size_ = the_window_size_ > WINDOW_FLOOR ? the_window_size_ : WINDOW_FLOOR;
+
   the_window_size_ = 0;
-  // uint64_t delay =  delays_.rbegin() != delays_.rend() ? delays_.rbegin()->first : 0;
-  // cerr << "TIMEOUT OCCURRED at time " << timestamp_ms() << " with delay " << delay << "stored window " << stored_window << endl;
+
 }
