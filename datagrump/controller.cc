@@ -88,7 +88,9 @@ void Controller::ack_received( const uint64_t __attribute__((unused)) sequence_n
   }
 
   if (delay <= min_delay_ * 1.5) {
-    the_window_size_++;
+    // Scales increase as delay increases
+    unsigned int factor = 1 - ( 2 * (delay - min_delay_)/ min_delay_);
+    the_window_size_ += factor * factor * factor;
     window_estimate_ = window_estimate_ < the_window_size_ ? the_window_size_ : window_estimate_;
   }else{
     if( the_window_size_ >= window_estimate_ ) { //if increasing
@@ -119,7 +121,7 @@ void Controller::ack_received( const uint64_t __attribute__((unused)) sequence_n
    before sending one more datagram */
 unsigned int Controller::timeout_ms( void )
 {
-  float factor = probe_conn_ ? 1.2 : 5;
+  float factor = probe_conn_ ? 3 : 5;
   return static_cast<unsigned int>(min_delay_ * factor);
 }
 
