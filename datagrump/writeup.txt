@@ -1,0 +1,28 @@
+Keith Major (keithm2)
+Mark Xue (markxue)
+
+CS244 Project 2 Writeup
+GitHub repo:
+https://github.com/keithm2/CS244_Proj2
+
+Exercise 1: The best single window size to maximize the score was a window size of 13, and a average power score of 12.83. The stddev of our measurements was ~.05 for 12,13 and 14
+
+
+Exercise 2:
+We implemented AIMD with parameters
+window := window + a
+window := window x b
+for values 
+a = 1/ window, 1/(2*window)
+b = 1/8, 1/4, 1/2
+
+These schemes produced results much
+lower than a fixed window size. Our best result 
+was for a = 1/ (2*window), b = 1/4
+
+Exercise 3:
+We implemented a delay based congestion, initially with AIMD triggered by delay over/under a constant value of 100, 150, and 300ms.
+
+We then modified the addition and recovery mechanisms and got much higher power scores.
+
+
