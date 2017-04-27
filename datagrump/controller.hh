@@ -2,6 +2,8 @@
 #define CONTROLLER_HH
 
 #include <cstdint>
+#include <deque>
+#include <utility>
 
 /* Congestion controller interface */
 
@@ -9,6 +11,10 @@ class Controller
 {
 private:
   bool debug_; /* Enables debugging output */
+  unsigned int the_window_size_;
+  std::deque<std::pair<uint64_t, uint64_t>> delays_; //delay, received timestamp
+  unsigned int window_estimate_;
+
 
   /* Add member variables here */
 

@@ -1,27 +1,37 @@
 #include <iostream>
+#include <array>
+#include <algorithm>
 
 #include "controller.hh"
 #include "timestamp.hh"
 
 using namespace std;
+#define INTERVAL_TIME 200000
+#define DELAY_FLOOR 100
 
+typedef std::pair<uint64_t, uint64_t> delay_pair;
 /* Default constructor */
 Controller::Controller( const bool debug )
-  : debug_( debug )
+  : debug_( debug ),
+    the_window_size_(1),
+    delays_(),
+    window_estimate_(1);
 {}
+
+
 
 /* Get current window size, in datagrams */
 unsigned int Controller::window_size( void )
 {
   /* Default: fixed window size of 100 outstanding datagrams */
-  unsigned int the_window_size = 50;
+  
 
   if ( debug_ ) {
     cerr << "At time " << timestamp_ms()
-	 << " window size is " << the_window_size << endl;
+	 << " window size is " << the_window_size_ << endl;
   }
 
-  return the_window_size;
+  return the_window_size_;
 }
 
 /* A datagram was sent */
@@ -56,6 +66,49 @@ void Controller::ack_received( const uint64_t sequence_number_acked,
 	 << " (send @ time " << send_timestamp_acked
 	 << ", received @ time " << recv_timestamp_acked << " by receiver's clock)"
 	 << endl;
+  }
+  uint64_t delay = timestamp_ack_received - send_timestamp_acked;
+  delays_.push_back(delay_pair(delay, timestamp_ack_received));
+
+  if (timestamp_ack_received > INTERVAL_TIME) {
+    while( delays_.front().second <  timestamp_ack_received - INTERVAL_TIME ) {
+      delays_.pop_front();
+    }
+  }
+
+  uint64_t min_delay = delay;
+  for (auto pr : delays_) {
+    min_delay = pr.first < min_delay ? pr.first : min_delay;
+  }
+  min_delay = min_delay < DELAY_FLOOR ? DELAY_FLOOR : min_delay;
+
+  if (delay <= min_delay * 1.25) {
+    if (debug_) {
+      cerr << "min delay of: " << min_delay
+           << "delay of: " << delay 
+           << "Increment window" << the_window_size_ << endl;
+    }
+    the_window_size_++;
+    window_estimate_ = window_estimate_ < the_window_size_ ? the_window_size_ : window_estimate_
+  }else{
+    if( the_window_size_ == window_estimate_ ) {
+      window_estimate_ = the_window_size_;
+      the_window_size_ *= .5;
+    }else {
+      window_estimate *= .5
+    }
+
+    
+
+    // if (debug_) {
+    //   cerr << "min delay of: " << min_delay
+    //        << "delay of: " << delay 
+    //        << "Backoff window" << the_window_size_ << endl;
+    // }
+
+    // if (the_window_size_ > 1 ) {
+    //   the_window_size_ --;
+    // }
   }
 }
 
