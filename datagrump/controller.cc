@@ -13,7 +13,7 @@ typedef std::pair<uint64_t, uint64_t> delay_pair;
 /* Default constructor */
 Controller::Controller( const bool debug )
   : debug_( debug ),
-    the_window_size_(1),
+    the_window_size_(5),
     delays_(),
     window_(),
     window_estimate_(10)
@@ -94,7 +94,7 @@ void Controller::ack_received( const uint64_t __attribute__((unused)) sequence_n
     //        << "Increment window" << the_window_size_ << endl;
     // }
     if(debug_){
-      cerr << "Min delay of " << min_delay << " after receiving delay " << delay << "incrementing "<< endl;
+      cerr << "Min delay of " << min_delay << " after receiving delay " << delay << " incrementing "<< endl;
     }
 
     the_window_size_++;
@@ -108,6 +108,7 @@ void Controller::ack_received( const uint64_t __attribute__((unused)) sequence_n
       }
 
       the_window_size_ = window_estimate_ * .75; //rate limit recovery
+      //the_window_size_ = the_window_size_ == 0 ? 1 : the_window_size_;
 
       if(debug_){
         cerr << "Min delay of " << min_delay << " after receiving delay " << delay << "rate recovery "<< endl;
@@ -115,10 +116,17 @@ void Controller::ack_received( const uint64_t __attribute__((unused)) sequence_n
 
     }else {
       window_estimate_ *= .5;
+      // window_estimate_ = window_estimate_ < 0 ? 1 : window_estimate_;
+      //window_estimate_ = window_estimate_ < 2 ? 1 : window_estimate_ - 1;
       if(debug_){
-        cerr << "Min delay of " << min_delay << " after receiving delay " << delay << "reset estimate "<< endl;
+        cerr << "Min delay of " << min_delay 
+             << " after receiving delay " << delay 
+             << " reset estimate to " << window_estimate_ << endl;
       }
     }
+    //the_window_size_ = window_estimate_ < 2 ? 1 : window_estimate_ - 1;
+    // the_window_size_ = window_estimate_ * .75;
+    // the_window_size_ = the_window_size_ == 0 ? 1 : the_window_size_;
 
     
 
